@@ -1,4 +1,4 @@
-import { Copy } from "@carbon/icons-react";
+import { Copy, Edit, ViewOff } from "@carbon/icons-react";
 import {
   Button,
   Checkbox,
@@ -44,7 +44,6 @@ const Validation = (props) => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [, forceUpdate] = useState({});
   const [validationState, setValidationState] = useState({});
   const [bacteriologyPage, setBacteriologyPage] = useState(1);
   const [bacteriologyPageSize, setBacteriologyPageSize] = useState(5);
@@ -54,6 +53,40 @@ const Validation = (props) => {
   // LabNo (accessionNumber without its per-test suffix) since that's the
   // reliable "same sample" key - sampleId turned out not to be trustworthy.
   const [expandedLabNo, setExpandedLabNo] = useState(null);
+  // LabNo dont le panneau d'interprétation a été fermé MANUELLEMENT. Nécessaire
+  // parce qu'un LabNo recherché (searchedAccessionNumber) est auto-ouvert : sans
+  // ce garde-fou, « Masquer » était sans effet sur un échantillon recherché.
+  const [manuallyCollapsedLabNos, setManuallyCollapsedLabNos] = useState(
+    () => new Set(),
+  );
+
+  // État d'ouverture effectif du panneau pour un LabNo : choix manuel prioritaire
+  // sur l'auto-ouverture de recherche.
+  const isInterpretationOpen = (labNo) => {
+    if (labNo == null) return false;
+    if (manuallyCollapsedLabNos.has(labNo)) return false;
+    if (labNo === expandedLabNo) return true;
+    return (
+      props.searchedAccessionNumber &&
+      labNo === getLabNo(props.searchedAccessionNumber)
+    );
+  };
+
+  // Bascule ouverture/fermeture depuis le bouton, en mémorisant une fermeture
+  // manuelle (pour l'emporter sur l'auto-ouverture de recherche).
+  const toggleInterpretation = (labNo) => {
+    const open = isInterpretationOpen(labNo);
+    setManuallyCollapsedLabNos((prev) => {
+      const next = new Set(prev);
+      if (open) {
+        next.add(labNo); // on ferme
+      } else {
+        next.delete(labNo); // on rouvre
+      }
+      return next;
+    });
+    setExpandedLabNo(open ? null : labNo);
+  };
 
   useEffect(() => {
     componentMounted.current = true;
@@ -246,26 +279,20 @@ const Validation = (props) => {
   };
 
   const handleInterpretationChange = (e, labNo) => {
-    const { value } = e.target;
-    const limitedValue = value.slice(0, 199);
-    let form = props.results;
-    var jp = require("jsonpath");
-
-    // Update interpretation for all results sharing the same LabNo, since a
-    // sample's tests can span several rows (each with its own accessionNumber
-    // suffix).
-    if (form.resultList) {
-      form.resultList.forEach((result, index) => {
+    const limitedValue = e.target.value.slice(0, 199);
+    // Champ NON contrôlé (defaultValue) : on n'appelle AUCUN setState ici, donc
+    // la frappe ne re-rend pas le parent. react-data-table-component remonte son
+    // expandableRowsComponent à chaque re-render du parent, ce qui démontait le
+    // TextArea et faisait perdre le focus. On écrit directement dans
+    // props.results (mutation en place, comme le reste de ce composant) pour la
+    // sauvegarde ; la valeur affichée reste gérée par le DOM.
+    const form = props.results;
+    if (form && form.resultList) {
+      form.resultList.forEach((result) => {
         if (getLabNo(result.accessionNumber) === labNo) {
-          jp.value(
-            form,
-            `resultList[${index}].sampleInterpretation`,
-            limitedValue,
-          );
+          result.sampleInterpretation = limitedValue;
         }
       });
-      // Force re-render to update the UI
-      forceUpdate({});
     }
   };
 
@@ -385,13 +412,14 @@ const Validation = (props) => {
         {intl.formatMessage({ id: "validation.sampleInterpretation.label" })}
       </label>
       <TextArea
+        key={`interpretation-${getLabNo(row.accessionNumber)}`}
         id={`interpretation-${getLabNo(row.accessionNumber)}`}
         labelText=""
         maxCount={200}
         placeholder={intl.formatMessage({
           id: "validation.sampleInterpretation.placeholder",
         })}
-        value={row.sampleInterpretation || ""}
+        defaultValue={row.sampleInterpretation || ""}
         onChange={(e) =>
           handleInterpretationChange(e, getLabNo(row.accessionNumber))
         }
@@ -426,7 +454,7 @@ const Validation = (props) => {
       case "sampleInfo": {
         const labNo = getLabNo(row.accessionNumber);
         const isLastOfSample = labNo != null && lastRowByLabNo[labNo] === row;
-        const isExpanded = labNo != null && labNo === expandedLabNo;
+        const isExpanded = isInterpretationOpen(labNo);
         return (
           <>
             <Button
@@ -457,26 +485,19 @@ const Validation = (props) => {
                 : row.accessionNumber}
               <br></br>
               {isLastOfSample && (
-                <button
-                  type="button"
-                  onClick={() => setExpandedLabNo(isExpanded ? null : labNo)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    cursor: "pointer",
-                    font: "inherit",
-                    fontSize: "0.75rem",
-                    color: "#0f62fe",
-                    textDecoration: "underline",
-                  }}
+                <Button
+                  kind="ghost"
+                  size="sm"
+                  renderIcon={isExpanded ? ViewOff : Edit}
+                  onClick={() => toggleInterpretation(labNo)}
+                  style={{ paddingLeft: 0, marginTop: "2px" }}
                 >
                   {intl.formatMessage({
                     id: isExpanded
                       ? "validation.sampleInterpretation.hide"
                       : "validation.sampleInterpretation.add",
                   })}
-                </button>
+                </Button>
               )}
               <br></br>
             </div>
@@ -846,10 +867,7 @@ const Validation = (props) => {
                         // each render their own copy of the panel.
                         return false;
                       }
-                      const isSearched =
-                        props.searchedAccessionNumber &&
-                        labNo === props.searchedAccessionNumber.split("-")[0];
-                      return labNo === expandedLabNo || isSearched;
+                      return isInterpretationOpen(labNo);
                     }}
                     conditionalRowStyles={
                       props.searchedAccessionNumber
