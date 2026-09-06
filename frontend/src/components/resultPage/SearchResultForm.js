@@ -174,7 +174,10 @@ export function SearchResultForm(props) {
       values.accessionNumber !== ""
         ? values.accessionNumber
         : values.startLabNo;
-    let labNo = accessionNumber ? accessionNumber.split("-")[0] : "";
+    // Ne pas tronquer sur « - » : le tiret fait partie intégrante du numéro
+    // d'accession (ex. « 1252-26 »). Le backend fait un match EXACT
+    // (getSampleByAccessionNumber), donc tronquer renvoyait une page vide.
+    let labNo = accessionNumber ? accessionNumber.trim() : "";
     const endLabNo = values.endLabNo ? values.endLabNo : "";
     values.unitType = values.unitType ? values.unitType : "";
 
@@ -908,29 +911,20 @@ export function SearchResults(props) {
       setIsFilterLoading(false);
       return;
     }
-    if (!props.searchUrl) return;
-    setIsFilterLoading(true);
-    const timer = setTimeout(() => {
-      const url = props.searchUrl.replace(
-        /labNumber=[^&]*/,
-        "labNumber=" + encodeURIComponent(labNoFilter),
-      );
-      getFromOpenElisServer(url, (results) => {
-        if (results?.testResult) {
-          var i = 0;
-          results.testResult.forEach((item) => (item.id = "" + i++));
-          setFilteredResults(results);
-        } else {
-          setFilteredResults({ testResult: [] });
-        }
-        setIsFilterLoading(false);
-      });
-    }, 400);
-    return () => {
-      clearTimeout(timer);
-      setIsFilterLoading(false);
-    };
-  }, [labNoFilter, props.searchUrl]);
+    // Filtrage CÔTÉ CLIENT sur la liste déjà chargée : le backend
+    // (LogbookResults) ignore labNumber dès qu'un testSectionId est fourni, donc
+    // rappeler le serveur ne filtrerait pas par LabNo quand une unité est
+    // sélectionnée. La liste par unité étant complète, on filtre par numéro
+    // d'accession en mémoire (correspondance partielle, insensible à la casse).
+    const source = props.results?.testResult || [];
+    const needle = labNoFilter.trim().toLowerCase();
+    const matched = source.filter((item) =>
+      (item.accessionNumber || "").toLowerCase().includes(needle),
+    );
+    matched.forEach((item, i) => (item.id = "" + i));
+    setFilteredResults({ ...props.results, testResult: matched });
+    setIsFilterLoading(false);
+  }, [labNoFilter, props.results]);
 
   const loadReferalOrganizations = (values) => {
     if (componentMounted.current) {
@@ -1872,7 +1866,7 @@ export function SearchResults(props) {
         )}
         {isBacteriology ? (
           <BacteriologyResultsContainer
-            testResults={props.results?.testResult || []}
+            testResults={(filteredResults ?? props.results)?.testResult || []}
             sysUserId={props.results?.sysUserId || "1"}
             showAllResults={props.results?.showAllResults || false}
             onSave={() => {
@@ -1890,7 +1884,6 @@ export function SearchResults(props) {
           />
         ) : (
           <>
-            {/* Champ de recherche labno masqué sur /LogbookResults et /AccessionResults
             <div
               style={{
                 display: "flex",
@@ -1952,7 +1945,6 @@ export function SearchResults(props) {
                   )}
               </div>
             </div>
-            */}
             <Formik
               initialValues={SearchResultFormValues}
               //validationSchema={}

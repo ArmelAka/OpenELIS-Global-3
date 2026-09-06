@@ -131,7 +131,8 @@ const SearchForm = (props) => {
       return;
     }
     if (props.setSearchedAccessionNumber) {
-      props.setSearchedAccessionNumber(labNoFilter.split("-")[0]);
+      // Numéro d'accession complet (le « - » en fait partie, ex. « 1252-26 »).
+      props.setSearchedAccessionNumber(labNoFilter.trim());
     }
     setIsFilterLoading(true);
     setNoFilterResult(false);
@@ -177,7 +178,7 @@ const SearchForm = (props) => {
     setPagination(false);
     setIsLoading(true);
     var accessionNumber = values.accessionNumber
-      ? values.accessionNumber.split("-")[0]
+      ? values.accessionNumber.trim()
       : "";
     if (props.setSearchedAccessionNumber) {
       props.setSearchedAccessionNumber(accessionNumber);
@@ -482,7 +483,6 @@ const SearchForm = (props) => {
               </Select>
             </Column>
             <Column lg={4} />
-            {/* Champ de recherche labno masqué sur /ResultValidation
             <Column lg={6} md={8} sm={4}>
               <div>
                 <div style={{ position: "relative" }}>
@@ -541,7 +541,6 @@ const SearchForm = (props) => {
                 )}
               </div>
             </Column>
-            */}
           </Grid>
         </>
       )}
