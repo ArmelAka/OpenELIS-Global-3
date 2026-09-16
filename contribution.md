@@ -4,5 +4,5 @@ kouassi armand virgile
 Djenebou
 Skaragher
 Juste Armel AKa
-KRA Kouame Abdoulaye Ouattara
-thierry BOMO|DAP|16-09-2026
+KRA Kouame Aboulaye Ouattara | LNSP | 16-09-2026
+thierry BOMO |DAP|16-09-2026
