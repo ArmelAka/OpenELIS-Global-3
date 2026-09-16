@@ -4,4 +4,4 @@ kouassi armand virgile
 Djenebou
 Skaragher
 Juste Armel AKa
-KRA Kouame Abdoulaye Ouattara
+KRA Kouame Aboulaye Ouattara | LNSP | 16-09-2026
