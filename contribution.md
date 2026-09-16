@@ -5,4 +5,4 @@ Djenebou
 Skaragher
 Juste Armel AKa
 KRA Kouame Abdoulaye Ouattara
-thierry BOMO
+thierry BOMO|DAP|16-09-2026
