@@ -4,8 +4,15 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
 
-    
-
+    <changeSet id="atelier_jacqueville_2026_seq" author="atelier_jacqueville_2026_1">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <sequenceExists sequenceName="atelier_jacqueville_2026_seq" schemaName="clinlims"/>
+            </not>
+        </preConditions>
+        <createSequence sequenceName="atelier_jacqueville_2026_seq" incrementBy="1" cycle="false"
+            schemaName="clinlims"/>
+    </changeSet>
 
     <changeSet id="create_table_atelier_jacqueville_2026" author="Gnahore">
         <preConditions onFail="MARK_RAN">
