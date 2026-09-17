@@ -23,7 +23,11 @@ WORKDIR /build
 # OE Default Password
 ARG DEFAULT_PW="adminADMIN!"
 ADD ./install/createDefaultPassword.sh /build/install/createDefaultPassword.sh
-RUN ./install/createDefaultPassword.sh -c -p ${DEFAULT_PW}
+# Normalize line endings (CRLF from Windows checkouts breaks the shebang) and
+# force the exec bit, which Windows filesystems don't preserve
+RUN sed -i 's/\r$//' /build/install/createDefaultPassword.sh \
+    && chmod +x /build/install/createDefaultPassword.sh \
+    && bash /build/install/createDefaultPassword.sh -c -p "${DEFAULT_PW}"
 
 
 ##
@@ -43,6 +47,7 @@ RUN --mount=type=cache,target=/root/.m2,sharing=locked \
 FROM tomcat:10-jre21
 
 ADD install/createDefaultPassword.sh ./
+RUN sed -i 's/\r$//' ./createDefaultPassword.sh
 
 
 #Clean out unneccessary files from tomcat (especially pre-existing applications) 
@@ -88,11 +93,13 @@ RUN groupadd tomcat; \
     chmod g-w,o-rwx $CATALINA_HOME/conf/web.xml
 
 ADD install/openelis_healthcheck.sh /healthcheck.sh
-RUN chown tomcat_admin:tomcat /healthcheck.sh; \
-    chmod 770 /healthcheck.sh;  
+RUN sed -i 's/\r$//' /healthcheck.sh; \
+    chown tomcat_admin:tomcat /healthcheck.sh; \
+    chmod 770 /healthcheck.sh;
 
 ADD install/docker-entrypoint.sh /docker-entrypoint.sh
-RUN chown tomcat_admin:tomcat /docker-entrypoint.sh; \
+RUN sed -i 's/\r$//' /docker-entrypoint.sh; \
+    chown tomcat_admin:tomcat /docker-entrypoint.sh; \
     chmod 770 /docker-entrypoint.sh;
 
 RUN mkdir -p /var/lib/lucene_index; \
